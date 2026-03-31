@@ -76,5 +76,17 @@ app.MapPost("/inventarisaties", async (Guid dossierId, IPublishEndpoint publishE
 })
 .WithName("IventarisatieOntvangen");
 
+app.MapPost("/crediteringen", async (Guid dossierId, IPublishEndpoint publishEndpoint) =>
+{
+    await publishEndpoint.Publish(new CrediteringOntvangenEvent
+    {
+        DossierId = dossierId,
+        FileId = Guid.NewGuid(),
+        FileType = FileType.Creditering
+    });
+    return Results.Accepted();
+})
+.WithName("CrediteringOntvangen");
+
 app.Run();
 

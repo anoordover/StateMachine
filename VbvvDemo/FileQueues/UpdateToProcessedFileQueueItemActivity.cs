@@ -43,7 +43,6 @@ public class UpdateToProcessedFileQueueItemActivity<T> : IStateMachineActivity<D
                 context.Message.DossierId,
                 fileId);
         }
-
         await next.Execute(context).ConfigureAwait(false);
     }
     

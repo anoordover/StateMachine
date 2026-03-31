@@ -12,7 +12,7 @@ public class DossierStateMachine : MassTransitStateMachine<DossierState>
 
     public State InventarisatieOntvangen { get; set; }
     public State InventarisatieVastgelegd { get; set; }
-    public State WachtOpBestand { get; set; }
+    public State GeenActieveVerwerking { get; set; }
     public State CrediteringInVerwerking { get; set; }
 
     public DossierStateMachine(ILogger<DossierStateMachine> logger)
@@ -46,16 +46,19 @@ public class DossierStateMachine : MassTransitStateMachine<DossierState>
         Initially(
             When(InventarisatieOntvangenEvent)
                 .InitializeDossier()
-                .Activity(x => x.OfType<CreateFileQueueItemInventarisatieActivity>())
-                .Publish(context => new StartVolgendeBestandEvent
+                .Publish(context => new LegInventarisatieVast
                 {
                     DossierId = context.Message.DossierId
                 })
-                .TransitionTo(WachtOpBestand));
+                .TransitionTo(InventarisatieOntvangen));
 
         During(InventarisatieOntvangen,
             When(InventarisatieVastgelegdEvent)
                 .Then(context => context.Saga.LastUpdatedUtc = DateTime.UtcNow)
+                .Publish(context => new VerstuurOntvangstbevestigingInventarisatie
+                {
+                    DossierId = context.Message.DossierId
+                })
                 .TransitionTo(InventarisatieVastgelegd),
 
             When(CrediteringOntvangenEvent)
@@ -63,45 +66,29 @@ public class DossierStateMachine : MassTransitStateMachine<DossierState>
 
         During(InventarisatieVastgelegd,
             When(OntvangstbevestigingInventarisatieVerstuurdEvent)
-                .MarkCurrentFileProcessed()
-                .Activity(x => x.OfType<UpdateToProcessedFileQueueItemActivity<OntvangstbevestigingInventarisatieVerstuurdEvent>>())
                 .Publish(context => new StartVolgendeBestandEvent
                 {
                     DossierId = context.Saga.DossierId
                 })
-                .TransitionTo(WachtOpBestand),
+                .TransitionTo(GeenActieveVerwerking),
 
             When(CrediteringOntvangenEvent)
                 .RegisterPendingCreditering());
 
-        During(WachtOpBestand,
+        During(GeenActieveVerwerking,
             When(StartVolgendeBestandEvent)
                 .Activity(x => x.OfType<ClaimNextPendingFileQueueItemActivity>())
-                .Activity(x => x.OfType<StartClaimedFileProcessingActivity>()),
+                .Activity(x => x.OfType<StartClaimedFileProcessingActivity>())
+                .If(context => context.Saga.ActiveFileType == FileType.Creditering,
+                    binder => binder.TransitionTo(CrediteringInVerwerking)),
 
             When(CrediteringOntvangenEvent)
                 .RegisterPendingCreditering()
                 .Publish(context => new StartVolgendeBestandEvent
                 {
                     DossierId = context.Message.DossierId
-                }),
-
-            When(OntvangstbevestigingInventarisatieVerstuurdEvent)
-                .MarkCurrentFileProcessed()
-                .Activity(x => x.OfType<UpdateToProcessedFileQueueItemActivity<OntvangstbevestigingInventarisatieVerstuurdEvent>>())
-                .Publish(context => new StartVolgendeBestandEvent
-                {
-                    DossierId = context.Saga.DossierId
-                }),
-
-            When(CrediteringVerwerktEvent)
-                .MarkCurrentFileProcessed()
-                .Activity(x => x.OfType<UpdateToProcessedFileQueueItemActivity<CrediteringVerwerktEvent>>())
-                .Publish(context => new StartVolgendeBestandEvent
-                {
-                    DossierId = context.Saga.DossierId
                 }));
-
+        
         During(CrediteringInVerwerking,
             When(CrediteringVerwerktEvent)
                 .MarkCurrentFileProcessed()
@@ -110,7 +97,7 @@ public class DossierStateMachine : MassTransitStateMachine<DossierState>
                 {
                     DossierId = context.Saga.DossierId
                 })
-                .TransitionTo(WachtOpBestand));
+                .TransitionTo(GeenActieveVerwerking));
 
         _logger.LogInformation("DossierStateMachine initialized");
     }

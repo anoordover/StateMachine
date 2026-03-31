@@ -1,6 +1,11 @@
 @VbvvDemo_HostAddress = http://localhost:5257
 
+### @name = aanbieden inventarisatie
 POST {{VbvvDemo_HostAddress}}/inventarisaties?dossierId=3d780633-a699-4d13-afbb-d09c5e989efe
 Accept: application/json
 
-###
+### @name = aanbieden creditering
+POST {{VbvvDemo_HostAddress}}/crediteringen?dossierId=3d780633-a699-4d13-afbb-d09c5e989efe
+Accept: application/json
+
+### 

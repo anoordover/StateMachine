@@ -17,5 +17,8 @@ public class VbvvDbContext : DbContext
         modelBuilder.Entity<FileQueueItem>()
             .Property(p => p.Status)
             .HasConversion<string>();
+        modelBuilder.Entity<FileQueueItem>()
+            .Property(p => p.FileType)
+            .HasConversion<string>();
     }
 }
