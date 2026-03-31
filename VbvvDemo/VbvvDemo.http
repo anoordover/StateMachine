@@ -1,0 +1,6 @@
+@VbvvDemo_HostAddress = http://localhost:5257
+
+POST {{VbvvDemo_HostAddress}}/inventarisaties?dossierId=3d780633-a699-4d13-afbb-d09c5e989efe
+Accept: application/json
+
+###
